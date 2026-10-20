@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Bó Hoa 20/10</title>
+    <meta name="claude:viewport-fit-sides" content="cover">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Be+Vietnam+Pro:wght@300;400;500&display=swap">
+    <style>
+        /* Layout: one centered column — big bouquet canvas first, handwritten card below, night-garden backdrop */
+        :root {
+            --night: #1c1020;
+            --night-2: #331a39;
+            --card: #fbf2ec;
+            --ink: #3b1f33;
+            --rose: #e8577a;
+            --gold: #f2c27b;
+            --muted: #c9b2c4;
+            --display: "Dancing Script", "Brush Script MT", cursive;
+            --body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+            color-scheme: dark;
+        }
+
+        html,
+        body {
+            min-height: 100%;
+        }
+
+        body {
+            background: radial-gradient(130% 70% at 50% 18%, var(--night-2), var(--night) 72%);
+            background-color: var(--night);
+            color: var(--card);
+            font-family: var(--body);
+            padding-left: max(16px, env(safe-area-inset-left, 0px));
+            padding-right: max(16px, env(safe-area-inset-right, 0px));
+            padding-block: 20px 44px;
+            overflow-x: hidden;
+        }
+
+        .wrap {
+            max-width: 600px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .date {
+            font-size: 12px;
+            letter-spacing: .28em;
+            text-transform: uppercase;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+            text-align: center;
+        }
+
+        h1 {
+            font-family: var(--display);
+            font-weight: 700;
+            color: var(--gold);
+            font-size: clamp(34px, 9vw, 54px);
+            line-height: 1.1;
+            margin: 0;
+            text-align: center;
+            text-wrap: balance;
+        }
+
+        .stage {
+            width: 100%;
+            aspect-ratio: 1 / 1.15;
+            max-width: 100%;
+            position: relative;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .card {
+            background: var(--card);
+            color: var(--ink);
+            border-radius: 4px;
+            padding: 24px 26px 22px;
+            width: 100%;
+            box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .6);
+            transform: rotate(-1deg);
+        }
+
+        .card .to {
+            font-family: var(--display);
+            font-size: 30px;
+            margin: 0 0 10px;
+            color: var(--rose);
+        }
+
+        .card p {
+            margin: 0 0 12px;
+            font-size: 15px;
+            line-height: 1.75;
+            font-weight: 300;
+        }
+
+        .card .from {
+            font-family: var(--display);
+            font-size: 26px;
+            text-align: right;
+            margin: 6px 0 0;
+        }
+
+        button {
+            font-family: var(--body);
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--card);
+            background: transparent;
+            border: 1px solid var(--muted);
+            border-radius: 999px;
+            padding: 10px 22px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        button:focus-visible {
+            outline: 2px solid var(--gold);
+            outline-offset: 3px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="wrap">
+        <div class="date">20 · 10 · 2026 — Ngày Phụ nữ Việt Nam</div>
+        <h1>Tặng Nhật Vi một bó hoa nìiiiiiiiiiii</h1>
+        <div class="stage"><canvas id="c" aria-label="Bó hoa hồng đang nở"></canvas></div>
+        <div class="card">
+            <div class="to">Gửi Nhật Vi,</div>
+            <p>Cảm ơn chị đã luôn ở cạnh, động viên và ở bên em thường gian qua</p>
+            <p>Chúc chị luôn vui, khỏe và gặp nhiều điều tốt. Có chuyện gì vui hay buồn thì cứ kể em nghe nhéee.</p>
+            <p>Chúc chị 20/10 thật vui!!!!!!</p>
+            <div class="from">— Phú Dinh</div>
+        </div>
+        <button id="replay" type="button">Cho hoa nở lại</button>
+    </div>
+
+    <script>
+        (() => {
+            const cv = document.getElementById('c');
+            const ctx = cv.getContext('2d');
+            const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+            let W = 0, H = 0, start = performance.now();
+            const TIE = { x: 0.5, y: 0.80 };
+
+            // Roses: x, y in a 0..1 frame, r = radius, hue/light = colour, d = bloom delay (s)
+            const ROSES = [
+                { x: 0.50, y: 0.22, r: 0.120, hue: 350, light: 58, d: 1.0 },
+                { x: 0.30, y: 0.28, r: 0.105, hue: 338, light: 70, d: 1.2 },
+                { x: 0.70, y: 0.27, r: 0.108, hue: 355, light: 52, d: 1.1 },
+                { x: 0.40, y: 0.40, r: 0.112, hue: 18, light: 78, d: 1.4 },
+                { x: 0.61, y: 0.40, r: 0.110, hue: 334, light: 74, d: 1.5 },
+                { x: 0.19, y: 0.43, r: 0.092, hue: 350, light: 62, d: 1.7 },
+                { x: 0.81, y: 0.42, r: 0.094, hue: 12, light: 76, d: 1.8 },
+                { x: 0.50, y: 0.53, r: 0.104, hue: 346, light: 56, d: 1.6 },
+                { x: 0.29, y: 0.54, r: 0.088, hue: 330, light: 78, d: 2.0 },
+                { x: 0.71, y: 0.54, r: 0.090, hue: 352, light: 64, d: 2.1 },
+            ];
+            const DAISIES = [
+                { x: 0.40, y: 0.15, r: 0.050 }, { x: 0.61, y: 0.13, r: 0.052 },
+                { x: 0.13, y: 0.31, r: 0.046 }, { x: 0.87, y: 0.30, r: 0.046 },
+                { x: 0.12, y: 0.56, r: 0.042 }, { x: 0.88, y: 0.57, r: 0.042 },
+            ];
+            const LEAVES = [
+                { x: 0.27, y: 0.63, rot: -1.05, s: 0.13 }, { x: 0.73, y: 0.63, rot: 1.05, s: 0.13 },
+                { x: 0.20, y: 0.58, rot: -1.45, s: 0.10 }, { x: 0.80, y: 0.58, rot: 1.45, s: 0.10 },
+                { x: 0.36, y: 0.60, rot: -0.55, s: 0.11 }, { x: 0.64, y: 0.60, rot: 0.55, s: 0.11 },
+                { x: 0.42, y: 0.30, rot: -0.35, s: 0.09 }, { x: 0.58, y: 0.31, rot: 0.40, s: 0.09 },
+                { x: 0.24, y: 0.36, rot: -0.9, s: 0.08 }, { x: 0.76, y: 0.35, rot: 0.9, s: 0.08 },
+            ];
+
+            // Seeded random so the baby's breath stays in the same place every replay
+            let seed = 2010;
+            const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+            const BREATH = [];
+            [[0.22, 0.20], [0.78, 0.19], [0.50, 0.09], [0.08, 0.44], [0.92, 0.44], [0.35, 0.12], [0.66, 0.10], [0.20, 0.65], [0.80, 0.66]]
+                .forEach(([cx, cy]) => { for (let i = 0; i < 9; i++) BREATH.push({ x: cx + (rnd() - .5) * 0.09, y: cy + (rnd() - .5) * 0.07, r: 0.006 + rnd() * 0.005, d: rnd() * 0.6 }); });
+            const SPARKS = Array.from({ length: 16 }, () => ({ x: 0.05 + rnd() * 0.9, y: 0.05 + rnd() * 0.6, p: rnd() * 6.28, s: 0.008 + rnd() * 0.01 }));
+            const falling = [];
+
+            function resize() {
+                const r = cv.getBoundingClientRect();
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                W = r.width; H = r.height;
+                cv.width = W * dpr; cv.height = H * dpr;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+            const ease = t => t <= 0 ? 0 : t >= 1 ? 1 : 1 - Math.pow(1 - t, 3);
+            const pop = t => t <= 0 ? 0 : t >= 1 ? 1 : 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
+            const S = () => Math.min(W, H / 1.15);
+            const px = (x, y) => [W / 2 + (x - 0.5) * S(), (y - 0.5) * S() * 1.15 + H / 2];
+
+            function qpt(a, c, b, t) { const u = 1 - t; return [u * u * a[0] + 2 * u * t * c[0] + t * t * b[0], u * u * a[1] + 2 * u * t * c[1] + t * t * b[1]]; }
+
+            function backPaper(p) {
+                if (p <= 0) return;
+                const s = S(), [tx, ty] = px(TIE.x, TIE.y + 0.05);
+                ctx.save(); ctx.globalAlpha = ease(p);
+                ctx.translate(tx, ty); ctx.scale(0.6 + 0.4 * ease(p), 0.6 + 0.4 * ease(p)); ctx.translate(-tx, -ty);
+                const g = ctx.createLinearGradient(0, px(0, 0.05)[1], 0, ty);
+                g.addColorStop(0, 'hsl(338 55% 88%)'); g.addColorStop(1, 'hsl(338 40% 74%)');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.moveTo(tx, ty);
+                const L = px(0.04, 0.12), R = px(0.96, 0.12);
+                ctx.lineTo(...L);
+                for (let i = 0; i < 8; i++) { // scalloped top edge
+                    const a = px(0.04 + (i + 0.5) * 0.115, 0.02 + (i % 2) * 0.025), b = px(0.04 + (i + 1) * 0.115, 0.10 + ((i + 1) % 2) * 0.03);
+                    ctx.quadraticCurveTo(...a, ...b);
+                }
+                ctx.lineTo(...R); ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = 'hsla(338 40% 60% / .35)'; ctx.lineWidth = 1;
+                for (const x of [0.25, 0.75]) { ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(...px(x, 0.1)); ctx.stroke(); }
+                ctx.restore();
+            }
+
+            function stem(f, p) {
+                if (p <= 0) return;
+                const a = px(TIE.x, TIE.y), b = px(f.x, f.y), c = px((TIE.x + f.x) / 2 + (f.x - 0.5) * 0.3, (TIE.y + f.y) / 2 + 0.06);
+                ctx.strokeStyle = '#47803f'; ctx.lineWidth = Math.max(2, S() * 0.009); ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.moveTo(...a);
+                for (let i = 1; i <= 30; i++) ctx.lineTo(...qpt(a, c, b, (i / 30) * p));
+                ctx.stroke();
+            }
+
+            function leaf(l, p) {
+                if (p <= 0) return;
+                const [x, y] = px(l.x, l.y), s = l.s * S() * ease(p);
+                ctx.save(); ctx.translate(x, y); ctx.rotate(l.rot);
+                const g = ctx.createLinearGradient(0, 0, 0, -s * 1.6);
+                g.addColorStop(0, '#3f7a3a'); g.addColorStop(1, '#79b865');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.moveTo(0, 0);
+                ctx.bezierCurveTo(s * 0.55, -s * 0.35, s * 0.4, -s * 1.2, 0, -s * 1.6);
+                ctx.bezierCurveTo(-s * 0.4, -s * 1.2, -s * 0.55, -s * 0.35, 0, 0);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(30,70,30,.5)'; ctx.lineWidth = Math.max(1, s * 0.03);
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(s * 0.05, -s * 0.8, 0, -s * 1.5); ctx.stroke();
+                ctx.restore();
+            }
+
+            function petalPath(w, len) {
+                ctx.beginPath();
+                ctx.moveTo(-w * 0.5, 0);
+                ctx.bezierCurveTo(-w * 0.8, -len * 0.55, -w * 0.5, -len, 0, -len);
+                ctx.bezierCurveTo(w * 0.5, -len, w * 0.8, -len * 0.55, w * 0.5, 0);
+                ctx.closePath();
+            }
+
+            function rose(f, b, now) {
+                if (b <= 0) return;
+                const [x, y] = px(f.x, f.y), R = f.r * S() * (0.25 + 0.75 * pop(b));
+                const { hue: h, light: l } = f;
+                ctx.save(); ctx.translate(x, y);
+                ctx.rotate(Math.sin(now * 0.001 + f.x * 10) * 0.035 + (1 - ease(b)) * 0.6);
+                ctx.globalAlpha = Math.min(1, b * 3);
+                // soft shadow disc so petals read against each other
+                ctx.fillStyle = `hsl(${h} 55% ${l - 30}%)`;
+                ctx.beginPath(); ctx.arc(0, 0, R * 0.9, 0, Math.PI * 2); ctx.fill();
+                const rings = [{ n: 7, rad: 0.50, len: 0.62, w: 0.70, dl: 0 }, { n: 6, rad: 0.32, len: 0.52, w: 0.62, dl: -7 }, { n: 5, rad: 0.16, len: 0.42, w: 0.55, dl: -14 }];
+                rings.forEach((ring, i) => {
+                    const open = ease(b * 1.25 - i * 0.12);
+                    for (let j = 0; j < ring.n; j++) {
+                        const ang = (j / ring.n) * Math.PI * 2 + i * 0.55;
+                        ctx.save(); ctx.rotate(ang); ctx.translate(0, -ring.rad * R * (0.5 + 0.5 * open));
+                        const len = ring.len * R, w = ring.w * R * (0.6 + 0.4 * open);
+                        const g = ctx.createLinearGradient(0, 0, 0, -len);
+                        g.addColorStop(0, `hsl(${h} 62% ${l - 18 + ring.dl}%)`);
+                        g.addColorStop(1, `hsl(${h} 78% ${Math.min(92, l + 8 + ring.dl)}%)`);
+                        ctx.fillStyle = g; petalPath(w, len); ctx.fill();
+                        ctx.strokeStyle = `hsla(${h} 60% ${l - 28}% / .55)`; ctx.lineWidth = Math.max(0.8, R * 0.018); ctx.stroke();
+                        ctx.restore();
+                    }
+                });
+                // rolled centre
+                ctx.fillStyle = `hsl(${h} 65% ${l - 10}%)`;
+                ctx.beginPath(); ctx.arc(0, 0, R * 0.22, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = `hsl(${h} 55% ${l - 32}%)`; ctx.lineWidth = Math.max(1, R * 0.035); ctx.lineCap = 'round';
+                for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(R * 0.02 * k, 0, R * (0.06 + k * 0.06), k * 1.9, k * 1.9 + 4.2); ctx.stroke(); }
+                ctx.restore();
+            }
+
+            function daisy(f, b, now) {
+                if (b <= 0) return;
+                const [x, y] = px(f.x, f.y), R = f.r * S() * pop(b);
+                ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(now * 0.0013 + f.y * 12) * 0.06);
+                ctx.fillStyle = '#fdf8f3'; ctx.strokeStyle = 'rgba(180,160,170,.6)'; ctx.lineWidth = 0.8;
+                for (let i = 0; i < 12; i++) {
+                    ctx.save(); ctx.rotate(i / 12 * Math.PI * 2);
+                    ctx.beginPath(); ctx.ellipse(0, -R * 0.55, R * 0.16, R * 0.45, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    ctx.restore();
+                }
+                ctx.fillStyle = '#f2b84b'; ctx.beginPath(); ctx.arc(0, 0, R * 0.24, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#d98f2b'; ctx.beginPath(); ctx.arc(R * 0.05, R * 0.05, R * 0.12, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            }
+
+            function breath(t) {
+                BREATH.forEach(p => {
+                    const b = ease((t - 2.4 - p.d) / 0.5); if (b <= 0) return;
+                    const [x, y] = px(p.x, p.y);
+                    ctx.fillStyle = 'rgba(255,252,248,.95)';
+                    ctx.beginPath(); ctx.arc(x, y, p.r * S() * b, 0, Math.PI * 2); ctx.fill();
+                });
+            }
+
+            function frontPaper(p) {
+                const s = S();
+                ctx.save(); ctx.globalAlpha = ease(p);
+                // pink inner sheet
+                ctx.fillStyle = 'hsl(345 60% 72%)';
+                ctx.beginPath(); ctx.moveTo(...px(0.13, 0.58));
+                ctx.quadraticCurveTo(...px(0.5, 0.66), ...px(0.87, 0.58));
+                ctx.lineTo(...px(0.55, 0.98)); ctx.lineTo(...px(0.45, 0.98)); ctx.closePath(); ctx.fill();
+                // cream outer sheet
+                const top = px(0.5, 0.62)[1], g = ctx.createLinearGradient(0, top, 0, px(0.5, 0.98)[1]);
+                g.addColorStop(0, '#f6e6da'); g.addColorStop(1, '#dcbfae');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.moveTo(...px(0.20, 0.62));
+                ctx.bezierCurveTo(...px(0.33, 0.68), ...px(0.40, 0.60), ...px(0.5, 0.65));
+                ctx.bezierCurveTo(...px(0.60, 0.60), ...px(0.67, 0.68), ...px(0.80, 0.62));
+                ctx.lineTo(...px(0.545, 0.98)); ctx.lineTo(...px(0.455, 0.98)); ctx.closePath(); ctx.fill();
+                // fold
+                ctx.fillStyle = 'rgba(160,110,100,.18)';
+                ctx.beginPath(); ctx.moveTo(...px(0.20, 0.62)); ctx.lineTo(...px(0.50, 0.70)); ctx.lineTo(...px(0.455, 0.98)); ctx.closePath(); ctx.fill();
+                ctx.restore();
+            }
+
+            function ribbon(p) {
+                if (p <= 0) return;
+                const s = S() * ease(p), [cx, cy] = px(0.5, 0.82);
+                ctx.save();
+                ctx.fillStyle = '#d9466c';
+                ctx.fillRect(cx - S() * 0.15, cy - s * 0.02, S() * 0.30 * ease(p), s * 0.04);
+                for (const d of [-1, 1]) {
+                    ctx.fillStyle = '#e8577a';
+                    ctx.beginPath(); ctx.moveTo(cx, cy);
+                    ctx.bezierCurveTo(cx + d * s * 0.10, cy - s * 0.14, cx + d * s * 0.20, cy - s * 0.04, cx + d * s * 0.03, cy + s * 0.01);
+                    ctx.fill();
+                    ctx.fillStyle = '#c23d61';
+                    ctx.beginPath(); ctx.moveTo(cx, cy + s * 0.01);
+                    ctx.quadraticCurveTo(cx + d * s * 0.05, cy + s * 0.08, cx + d * s * 0.09, cy + s * 0.15);
+                    ctx.lineTo(cx + d * s * 0.05, cy + s * 0.14);
+                    ctx.quadraticCurveTo(cx + d * s * 0.02, cy + s * 0.07, cx, cy + s * 0.01);
+                    ctx.fill();
+                }
+                ctx.fillStyle = '#b8355a'; ctx.beginPath(); ctx.ellipse(cx, cy, s * 0.028, s * 0.024, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            }
+
+            function sparkle(t, now) {
+                if (t < 3.2) return;
+                const a0 = ease((t - 3.2) / 1);
+                SPARKS.forEach(sp => {
+                    const tw = (Math.sin(now * 0.003 + sp.p) + 1) / 2, [x, y] = px(sp.x, sp.y), r = sp.s * S() * tw;
+                    ctx.save(); ctx.translate(x, y); ctx.globalAlpha = a0 * tw;
+                    ctx.fillStyle = '#ffe3a8';
+                    ctx.beginPath(); ctx.moveTo(0, -r * 2); ctx.quadraticCurveTo(0, 0, r * 2, 0); ctx.quadraticCurveTo(0, 0, 0, r * 2);
+                    ctx.quadraticCurveTo(0, 0, -r * 2, 0); ctx.quadraticCurveTo(0, 0, 0, -r * 2); ctx.fill();
+                    ctx.restore();
+                });
+            }
+
+            function fall() {
+                if (Math.random() < 0.07 && falling.length < 45) falling.push({ x: Math.random() * W, y: -10, vy: 0.5 + Math.random() * 0.7, vx: -0.3 + Math.random() * 0.6, r: 3 + Math.random() * 4, a: Math.random() * 6, hue: [348, 338, 15, 330][Math.floor(Math.random() * 4)] });
+                for (let i = falling.length - 1; i >= 0; i--) {
+                    const p = falling[i];
+                    p.y += p.vy; p.x += p.vx + Math.sin(p.y * 0.02) * 0.3; p.a += 0.02;
+                    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a);
+                    ctx.fillStyle = `hsla(${p.hue} 75% 72% / .85)`;
+                    ctx.beginPath(); ctx.ellipse(0, 0, p.r, p.r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+                    if (p.y > H + 10) falling.splice(i, 1);
+                }
+            }
+
+            function frame(now) {
+                const t = reduce ? 99 : (now - start) / 1000;
+                ctx.clearRect(0, 0, W, H);
+                const [gx, gy] = px(0.5, 0.38), gr = ctx.createRadialGradient(gx, gy, 0, gx, gy, S() * 0.6);
+                gr.addColorStop(0, 'rgba(242,194,123,0.18)'); gr.addColorStop(1, 'rgba(242,194,123,0)');
+                ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+
+                backPaper(t / 0.7);
+                [...ROSES, ...DAISIES].forEach((f, i) => stem(f, ease((t - 0.2 - i * 0.04) / 1.1)));
+                LEAVES.forEach((l, i) => leaf(l, (t - 0.8 - i * 0.06) / 0.8));
+                breath(t);
+                DAISIES.forEach((f, i) => daisy(f, (t - 2.0 - i * 0.12) / 0.8, now));
+                [...ROSES].sort((a, b) => a.y - b.y).forEach(f => rose(f, (t - f.d) / 1.6, now));
+                frontPaper(t / 0.5);
+                ribbon((t - 0.4) / 0.8);
+                sparkle(t, now);
+                if (!reduce && t > 2.6) fall();
+                if (!reduce) requestAnimationFrame(frame);
+            }
+
+            resize();
+            addEventListener('resize', () => { resize(); if (reduce) frame(performance.now()); });
+            document.getElementById('replay').addEventListener('click', () => {
+                start = performance.now(); falling.length = 0;
+                if (reduce) frame(performance.now());
+            });
+            requestAnimationFrame(frame);
+        })();
+    </script>
+</body>
+
+</html>
